@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+:root,
+[data-theme="night"] {
+  --bg: #0B0A12;
+  --landmass: #2C2840;
+  --ink: #F4ECDC;
+  --muted: #9690A8;
+  --panel: #14121EEB;
+  --panel-solid: #14121E;
+  --panel-elevated: #1D1A2B;
+  --border: #2A2638;
+
+  --ontime: #FFE9B8;
+  --delay: #FF9F1C;
+  --breach: #FF4D3A;
+  --spare: #7AD7C1;
+  --storm: #B9A8FF;
+
+  --ontime-text: #FFE9B8;
+  --delay-text: #FFAD3B;
+  --breach-text: #FF7766;
+  --spare-text: #7AD7C1;
+  --storm-text: #C5B7FF;
+
+  --ontime-bg: rgba(255, 233, 184, 0.12);
+  --delay-bg: rgba(255, 159, 28, 0.14);
+  --breach-bg: rgba(255, 77, 58, 0.15);
+  --spare-bg: rgba(122, 215, 193, 0.14);
+  --storm-bg: rgba(185, 168, 255, 0.14);
+
+  --pill-active-bg: #FFE9B8;
+  --pill-active-ink: #0B0A12;
+  --button-primary-bg: #7AD7C1;
+  --button-primary-ink: #0B0A12;
+  --focus-ring: #7AD7C1;
+  --row-hover: rgba(244, 236, 220, 0.04);
+  --track-bg: #221E33;
+}
+
+[data-theme="day"] {
+  --bg: #ECE6D8;
+  --landmass: #C4B99F;
+  --ink: #1A1724;
+  --muted: #524C61;
+  --panel: #F6F2E8EB;
+  --panel-solid: #F6F2E8;
+  --panel-elevated: #E3DAC7;
+  --border: #C4B99F;
+
+  --ontime: #2F6B4F;
+  --delay: #C98A0B;
+  --breach: #C8341C;
+  --spare: #1D4E89;
+  --storm: #6B4FC8;
+
+  --ontime-text: #275B43;
+  --delay-text: #7D5200;
+  --breach-text: #A62612;
+  --spare-text: #1D4E89;
+  --storm-text: #563AA8;
+
+  --ontime-bg: rgba(47, 107, 79, 0.12);
+  --delay-bg: rgba(201, 138, 11, 0.15);
+  --breach-bg: rgba(200, 52, 28, 0.12);
+  --spare-bg: rgba(29, 78, 137, 0.12);
+  --storm-bg: rgba(107, 79, 200, 0.12);
+
+  --pill-active-bg: #1A1724;
+  --pill-active-ink: #ECE6D8;
+  --button-primary-bg: #1D4E89;
+  --button-primary-ink: #F6F2E8;
+  --focus-ring: #1D4E89;
+  --row-hover: rgba(26, 23, 36, 0.05);
+  --track-bg: #DDD3BE;
+}
+
+@layer base {
+  :root {
+    --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  html,
+  body {
+    margin: 0;
+    min-height: 100%;
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-style: italic;
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.surface-panel {
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.surface-elevated {
+  background-color: var(--panel-elevated);
+  border: 1px solid var(--border);
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 50;
+  padding: 0.625rem 1rem;
+  background-color: var(--pill-active-bg);
+  color: var(--pill-active-ink);
+  font-weight: 600;
+  border-radius: 0.375rem;
+}
+
+.skip-link:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
