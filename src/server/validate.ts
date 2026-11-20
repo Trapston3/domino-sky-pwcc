@@ -20,6 +20,7 @@ export const MAX_ACTIONS = 5;
 export const MAX_QUESTION_LENGTH = 300;
 
 const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+const TEXT_ENCODER = new TextEncoder();
 const VALID_MODES = new Set<DispatchMode>(['brief', 'ask']);
 const VALID_OBJECTIVES = new Set<Objective>(['compliance', 'passengers', 'delay']);
 
@@ -46,7 +47,7 @@ function parseHHMM(value: unknown): number | null {
 }
 
 function utf8ByteLength(text: string): number {
-  return new TextEncoder().encode(text).length;
+  return TEXT_ENCODER.encode(text).length;
 }
 
 function checkPayloadSize(raw: unknown, rawByteLength?: number): ValidationFailure | null {

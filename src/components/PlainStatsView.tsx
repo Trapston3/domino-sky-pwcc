@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { FlightNetworkDataset, SimulationResult } from '../engine/types.js';
 import { PlainStatsConnectionsTable } from './PlainStatsConnectionsTable.js';
 import { PlainStatsCrewsTable } from './PlainStatsCrewsTable.js';
@@ -15,7 +16,7 @@ interface PlainStatsViewProps {
 }
 
 /** Accessible Plain Stats operational view: Before/After, Flights, Connections, Crews, and Tail-Chain timeline. */
-export function PlainStatsView({
+export const PlainStatsView = memo(function PlainStatsView({
   dataset,
   baselineResult,
   currentResult,
@@ -121,4 +122,4 @@ export function PlainStatsView({
       />
     </div>
   );
-}
+});

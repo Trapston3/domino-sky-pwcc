@@ -7,13 +7,16 @@ import type {
 
 export { formatActionLabel } from './diff.js';
 
-interface Candidate {
+export interface RecoveryPoolCandidate {
   id: string;
   addedActions: RecoveryAction[];
   actionLabels: string[];
   sim: SimulationResult;
   diff: RecommendationDiff;
 }
+
+/** Evaluated recommendation candidates reused for objective-only re-ranking. */
+export type RecoveryPool = readonly RecoveryPoolCandidate[];
 
 const MAX_PAIR_SEEDS_PER_OBJECTIVE = 6;
 const MAX_RECOMMENDATIONS = 8;
@@ -48,7 +51,7 @@ function improvesSummary(ref: SimulationSummary, cand: SimulationSummary): boole
   );
 }
 
-function compareCandidates(a: Candidate, b: Candidate, objective: Objective): number {
+function compareCandidates(a: RecoveryPoolCandidate, b: RecoveryPoolCandidate, objective: Objective): number {
   const sa = a.sim.summary;
   const sb = b.sim.summary;
   for (const key of OBJECTIVE_KEYS[objective]) {
@@ -64,9 +67,22 @@ function compareCandidates(a: Candidate, b: Candidate, objective: Objective): nu
 
 function generateSingleActions(dataset: FlightNetworkDataset, baseSim: SimulationResult): RecoveryAction[] {
   const actions: RecoveryAction[] = [];
+  const delayedTails = new Set(
+    baseSim.flights
+      .filter((flight) => !flight.cancelled && (flight.delayMin > 0 || flight.crewBreachLeg))
+      .map((flight) => flight.operatingTail),
+  );
+  const tailsWithBrokenOutboundConnections = new Set(
+    baseSim.connections
+      .filter((connection) => connection.status === 'broken')
+      .map((connection) => baseSim.flights.find((flight) => flight.flight_id === connection.to_flight)?.operatingTail)
+      .filter((tailId): tailId is string => tailId !== undefined),
+  );
+  const affectedTails = new Set([...delayedTails, ...tailsWithBrokenOutboundConnections]);
+
   for (const spare of dataset.spare_aircraft) {
     for (const f of baseSim.flights) {
-      if (!f.cancelled && f.origin === spare.base) {
+      if (!f.cancelled && f.origin === spare.base && delayedTails.has(f.operatingTail)) {
         actions.push({ type: 'SWAP_SPARE', spareTail: spare.tail_id, flightId: f.flight_id });
       }
     }
@@ -81,6 +97,7 @@ function generateSingleActions(dataset: FlightNetworkDataset, baseSim: Simulatio
   }
 
   for (const [tailId, flights] of [...activeByTail.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    if (!affectedTails.has(tailId)) continue;
     const chain = flights.slice().sort((a, b) => a.leg_order - b.leg_order);
     for (let count = 1; count <= chain.length; count += 1) {
       actions.push({ type: 'CANCEL_TAIL_END', tailId, count });
@@ -116,18 +133,18 @@ function expandBreachPairs(
   closure: ClosureSpec | null,
   baseActions: readonly RecoveryAction[],
   baseSim: SimulationResult,
-  singleCandidates: readonly Candidate[],
+  singleCandidates: readonly RecoveryPoolCandidate[],
   seenPlans: Set<string>,
-  allCandidates: Candidate[]
+  allCandidates: RecoveryPoolCandidate[]
 ): void {
-  const seedMap = new Map<string, Candidate>();
+  const seedMap = new Map<string, RecoveryPoolCandidate>();
   for (const obj of ['compliance', 'passengers', 'delay'] as const) {
     const top = singleCandidates.slice().sort((a, b) => compareCandidates(a, b, obj));
     for (const cand of top.slice(0, MAX_PAIR_SEEDS_PER_OBJECTIVE)) seedMap.set(cand.id, cand);
   }
   const seeds = [...seedMap.values()];
 
-  const tryAddPair = (first: Candidate, second: RecoveryAction, secondBaseline?: SimulationSummary) => {
+  const tryAddPair = (first: RecoveryPoolCandidate, second: RecoveryAction, secondBaseline?: SimulationSummary) => {
     if (actionsObviouslyConflict(first.addedActions[0], second)) return;
     const pair = [first.addedActions[0], second];
     const planKey = canonicalPlanKey(pair);
@@ -173,14 +190,14 @@ function evaluateCandidatePool(
   dataset: FlightNetworkDataset,
   closure: ClosureSpec | null,
   baseActions: readonly RecoveryAction[]
-): Candidate[] {
+): RecoveryPoolCandidate[] {
   const baseSim = simulateNetwork(dataset, closure, baseActions);
   if (!baseSim.ok) return [];
   const { lateFlights, brokenConnections, crewBreaches } = baseSim.summary;
   if (lateFlights === 0 && brokenConnections === 0 && crewBreaches === 0) return [];
 
   const seenPlans = new Set<string>();
-  const singleCandidates: Candidate[] = [];
+  const singleCandidates: RecoveryPoolCandidate[] = [];
   for (const action of generateSingleActions(dataset, baseSim)) {
     const planKey = canonicalPlanKey([action]);
     if (seenPlans.has(planKey)) continue;
@@ -197,14 +214,14 @@ function evaluateCandidatePool(
     });
   }
 
-  const allCandidates: Candidate[] = [...singleCandidates];
+  const allCandidates: RecoveryPoolCandidate[] = [...singleCandidates];
   if (crewBreaches > 0 && singleCandidates.length > 0) {
     expandBreachPairs(dataset, closure, baseActions, baseSim, singleCandidates, seenPlans, allCandidates);
   }
   return allCandidates;
 }
 
-function rankCandidates(candidates: readonly Candidate[], objective: Objective): RecoveryRecommendation[] {
+function rankCandidates(candidates: RecoveryPool, objective: Objective): RecoveryRecommendation[] {
   return candidates
     .slice()
     .sort((a, b) => compareCandidates(a, b, objective))
@@ -221,6 +238,20 @@ function rankCandidates(candidates: readonly Candidate[], objective: Objective):
     }));
 }
 
+/** Evaluate all valid recovery candidates once for reuse across objective changes. */
+export function evaluateRecoveryPool(
+  dataset: FlightNetworkDataset,
+  closure: ClosureSpec | null,
+  baseActions: readonly RecoveryAction[] = [],
+): RecoveryPool {
+  return evaluateCandidatePool(dataset, closure, baseActions);
+}
+
+/** Rank a previously evaluated candidate pool for the requested objective. */
+export function rankRecoveryPool(pool: RecoveryPool, objective: Objective): RecoveryRecommendation[] {
+  return rankCandidates(pool, objective);
+}
+
 /**
  * Simulates valid recovery actions and returns ranked recommendations for the chosen objective.
  */
@@ -230,7 +261,7 @@ export function optimizeRecovery(
   objective: Objective,
   baseActions: readonly RecoveryAction[] = []
 ): RecoveryRecommendation[] {
-  return rankCandidates(evaluateCandidatePool(dataset, closure, baseActions), objective);
+  return rankRecoveryPool(evaluateRecoveryPool(dataset, closure, baseActions), objective);
 }
 
 /**
@@ -241,10 +272,10 @@ export function compareObjectives(
   closure: ClosureSpec | null,
   baseActions: readonly RecoveryAction[] = []
 ): Record<Objective, RecoveryRecommendation[]> {
-  const candidates = evaluateCandidatePool(dataset, closure, baseActions);
+  const candidates = evaluateRecoveryPool(dataset, closure, baseActions);
   return {
-    compliance: rankCandidates(candidates, 'compliance'),
-    passengers: rankCandidates(candidates, 'passengers'),
-    delay: rankCandidates(candidates, 'delay'),
+    compliance: rankRecoveryPool(candidates, 'compliance'),
+    passengers: rankRecoveryPool(candidates, 'passengers'),
+    delay: rankRecoveryPool(candidates, 'delay'),
   };
 }

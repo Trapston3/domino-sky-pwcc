@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { Airport, SimulatedFlight, SimulationResult } from '../engine/types.js';
 import { FLIGHT_STATUS_META } from './statusStyles.js';
 
@@ -23,6 +24,11 @@ export function DominoTraceAirportView({
   onSelectFlight,
   onClose,
 }: DominoTraceAirportViewProps) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [airport.id]);
+
   const isClosedAirport = simulation.closure?.airport === airport.id;
   const departures = simulation.flights
     .filter((f) => f.origin === airport.id)
@@ -93,7 +99,7 @@ export function DominoTraceAirportView({
               </span>
             )}
           </div>
-          <h2 className="text-base font-semibold mt-0.5" style={{ color: 'var(--ink)' }}>
+          <h2 ref={headingRef} tabIndex={-1} className="text-base font-semibold mt-0.5" style={{ color: 'var(--ink)' }}>
             <span className="font-mono-tabular">{airport.id}</span> · {airport.city}
           </h2>
           <p className="text-xs" style={{ color: 'var(--muted)' }}>

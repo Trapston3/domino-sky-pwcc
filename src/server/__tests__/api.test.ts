@@ -266,6 +266,9 @@ describe('api/ping', () => {
       pingHandler({ method }, mock.res);
       expect(mock.getStatus()).toBe(405);
       expect(mock.headers['allow']).toBe('GET');
+      expect(mock.headers['x-content-type-options']).toBe('nosniff');
+      expect(mock.headers['x-frame-options']).toBe('DENY');
+      expect(mock.headers['referrer-policy']).toBe('no-referrer');
       expect(mock.getBody()).toEqual({ error: 'Method not allowed. Use GET.', code: 'METHOD_NOT_ALLOWED' });
     }
   });
@@ -283,6 +286,9 @@ describe('api/ping', () => {
     pingHandler({ method: 'GET' }, rawRes);
     expect(statusCode).toBe(200);
     expect(headers['content-type']).toContain('application/json');
+    expect(headers['x-content-type-options']).toBe('nosniff');
+    expect(headers['x-frame-options']).toBe('DENY');
+    expect(headers['referrer-policy']).toBe('no-referrer');
     expect(JSON.parse(payload)).toEqual({ ok: true, flights: 70, baselineLate: 0 });
   });
 });

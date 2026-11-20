@@ -65,9 +65,7 @@ export const DAY_PALETTE: ThemePalette = {
   trailBlend: 'source-over',
 };
 
-/**
- * Returns the palette matching SPEC §5 hex colors for Night or Day mode.
- */
+/** Returns the configured palette for Night or Day mode. */
 export function getCanvasPalette(theme: CanvasTheme): ThemePalette {
   return theme === 'night' ? NIGHT_PALETTE : DAY_PALETTE;
 }
@@ -131,39 +129,4 @@ export function pushRect(
   rects[off + 2] = x1;
   rects[off + 3] = y1;
   return count + 1;
-}
-
-/**
- * Draws an upright rounded badge pill centered horizontally at `cx` and vertically at `cy`.
- */
-export function drawUprightPill(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  cx: number,
-  cy: number,
-  bgColor: string,
-  borderColor: string,
-  textColor: string,
-  paddingX = 8,
-  height = 20
-): { x0: number; y0: number; x1: number; y1: number } {
-  const width = ctx.measureText(text).width + paddingX * 2;
-  const x0 = cx - width * 0.5;
-  const y0 = cy - height * 0.5;
-  const r = 5;
-
-  ctx.beginPath();
-  ctx.roundRect(x0, y0, width, height, r);
-  ctx.fillStyle = bgColor;
-  ctx.fill();
-  ctx.lineWidth = 1.25;
-  ctx.strokeStyle = borderColor;
-  ctx.stroke();
-
-  ctx.fillStyle = textColor;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, cx, cy + 0.5);
-
-  return { x0, y0, x1: x0 + width, y1: y0 + height };
 }

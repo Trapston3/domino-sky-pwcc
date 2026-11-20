@@ -11,6 +11,7 @@ import type {
   SimulatedFlight,
   SimulationResult,
 } from '../engine/types.js';
+import { answerExplicitActionQuestion } from './askActionParser.js';
 
 /** Format the active closure or clear-skies headline and optional reopening surge line. */
 export function formatClosureLine(
@@ -187,6 +188,8 @@ export function answerGroundedQuestion(
   recommendations: readonly RecoveryRecommendation[],
   question: string,
 ): string {
+  const actionAnswer = answerExplicitActionQuestion(question, dataset, closure, actions, activeSim);
+  if (actionAnswer) return actionAnswer;
   const tokens = new Set((question.toUpperCase().match(/[A-Z0-9-]+/g) ?? []).map((t) => t.trim()));
   const lowerQ = question.toLowerCase();
   const baselineById = new Map(baselineSim.flights.map((f) => [f.flight_id, f]));

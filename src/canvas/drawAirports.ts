@@ -115,14 +115,20 @@ export function drawAirportsAndStormLayer(
       ctx.save();
       ctx.globalCompositeOperation = palette.trailBlend;
       const glowR = baseR * (isClosedTarget ? 4.0 : 2.6);
-      const glow = ctx.createRadialGradient(ax, ay, 0, ax, ay, glowR);
-      glow.addColorStop(0, isClosedTarget ? palette.storm : palette.onTime);
-      glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      const glowColor = isClosedTarget ? palette.storm : palette.onTime;
       ctx.globalAlpha = palette.trailBlend === 'lighter' ? 0.28 : 0.14;
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(ax, ay, glowR, 0, Math.PI * 2);
-      ctx.fill();
+      const glowSprite = buffers.getRadialGlowSprite(glowColor);
+      if (glowSprite) {
+        ctx.drawImage(glowSprite, ax - glowR, ay - glowR, glowR * 2, glowR * 2);
+      } else {
+        const glow = ctx.createRadialGradient(ax, ay, 0, ax, ay, glowR);
+        glow.addColorStop(0, glowColor);
+        glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(ax, ay, glowR, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
 

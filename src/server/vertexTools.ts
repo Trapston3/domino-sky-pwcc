@@ -93,8 +93,17 @@ export function buildDispatchToolDeclarations(): FunctionDeclaration[] {
   ];
 }
 
-function sameAction(a: RecoveryAction, b: RecoveryAction): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+function actionKey(action: RecoveryAction): string {
+  switch (action.type) {
+    case 'SWAP_SPARE':
+      return `${action.type}:${action.spareTail}:${action.flightId}`;
+    case 'CANCEL_TAIL_END':
+      return `${action.type}:${action.tailId}:${action.count}`;
+    case 'CANCEL_LOOP':
+      return `${action.type}:${action.firstFlightId}:${action.lastFlightId}`;
+    case 'HOLD_CONNECTION':
+      return `${action.type}:${action.connectionId}`;
+  }
 }
 
 function parseCandidateAction(raw: unknown): RecoveryAction | null {
@@ -144,7 +153,7 @@ function runSimulateCustomActions(
 
   const combined: RecoveryAction[] = [...baseActions];
   for (const candidate of parsedActions) {
-    if (!combined.some((existing) => sameAction(existing, candidate))) {
+    if (!combined.some((existing) => actionKey(existing) === actionKey(candidate))) {
       combined.push(candidate);
     }
   }
@@ -157,18 +166,22 @@ function runSimulateCustomActions(
     };
   }
 
-  const outcome = simulateNetwork(dataset, closure, combined);
+  const enums = buildDatasetEnums(dataset);
+  const validated = validateRecoveryActions(combined, enums, MAX_ACTIONS);
+  if (!validated.ok) {
+    return { ok: false, code: 'INVALID_ACTION', reason: validated.failure.error };
+  }
+
+  const outcome = simulateNetwork(dataset, closure, validated.actions);
   if (!outcome.ok) {
     return { ok: false, code: outcome.code, reason: outcome.reason };
   }
 
-  const enums = buildDatasetEnums(dataset);
-  const validated = validateRecoveryActions(combined, enums, MAX_ACTIONS);
   const diff = diffSimulations(activeSim, outcome);
 
   return {
     ok: true,
-    validSchema: validated.ok,
+    validSchema: true,
     actionLabels: combined.map((a) => formatActionLabel(a)),
     summary: outcome.summary,
     diff,

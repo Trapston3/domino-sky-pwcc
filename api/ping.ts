@@ -19,6 +19,9 @@ export interface PingResponse {
 function sendJson(res: PingResponse, statusCode: number, payload: unknown): void {
   if (typeof res.setHeader === 'function') {
     res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
   }
   if (typeof res.status === 'function') {
     const target = res.status(statusCode);

@@ -51,6 +51,15 @@ function makeTextResponse(text: string): GenerateContentResponse {
   } as GenerateContentResponse;
 }
 
+function expectSafeApiError(mock: ReturnType<typeof createMockRes>, expectedStatus: number): void {
+  expect(mock.getStatus()).toBe(expectedStatus);
+  expect(Object.keys(mock.getBody() as object).sort()).toEqual(['code', 'error']);
+  expect(JSON.stringify(mock.getBody())).not.toMatch(/stack|node_modules|\.ts:\d+|\.js:\d+/i);
+  expect(mock.headers['x-content-type-options']).toBe('nosniff');
+  expect(mock.headers['x-frame-options']).toBe('DENY');
+  expect(mock.headers['referrer-policy']).toBe('no-referrer');
+}
+
 describe('Phase 3 Dispatch & Degradation Matrix', () => {
   beforeEach(() => {
     resetDefaultDispatchRateLimiter();
@@ -241,7 +250,7 @@ describe('Phase 3 Dispatch & Degradation Matrix', () => {
         },
       },
     });
-    expect(calls).toBe(10);
+    expect(calls).toBe(5);
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ source: 'DETERMINISTIC ENGINE', degraded: true, notice: AI_UNAVAILABLE_NOTICE });
   });
@@ -264,8 +273,17 @@ describe('Phase 3 Dispatch & Degradation Matrix', () => {
 
     const getMock = createMockRes();
     await dispatchHandler({ method: 'GET' }, getMock.res);
-    expect(getMock.getStatus()).toBe(405);
+    expectSafeApiError(getMock, 405);
     expect(getMock.headers['allow']).toBe('POST');
+
+    const contentTypeMock = createMockRes();
+    await dispatchHandler(
+      { method: 'POST', headers: { 'content-type': 'text/plain' }, body: '{}' },
+      contentTypeMock.res,
+      { env: {} },
+    );
+    expectSafeApiError(contentTypeMock, 400);
+    expect(contentTypeMock.getBody()).toEqual({ error: 'Content-Type must be application/json.', code: 'INVALID_CONTENT_TYPE' });
 
     const postMock = createMockRes();
     await dispatchHandler(
@@ -278,7 +296,17 @@ describe('Phase 3 Dispatch & Degradation Matrix', () => {
 
     const badJsonMock = createMockRes();
     await dispatchHandler({ method: 'POST', body: '{bad-json' }, badJsonMock.res, { env: {} });
-    expect(badJsonMock.getStatus()).toBe(400);
+    expectSafeApiError(badJsonMock, 400);
     expect(badJsonMock.getBody()).toMatchObject({ code: 'INVALID_JSON' });
+
+    const internalErrorMock = createMockRes();
+    const brokenBody = {
+      async *[Symbol.asyncIterator]() {
+        throw new Error('C:\\private\\server\\dispatch.ts:123');
+      },
+    };
+    await dispatchHandler({ method: 'POST', [Symbol.asyncIterator]: brokenBody[Symbol.asyncIterator] }, internalErrorMock.res, { env: {} });
+    expectSafeApiError(internalErrorMock, 500);
+    expect(internalErrorMock.getBody()).toEqual({ error: 'Internal server error.', code: 'INTERNAL_ERROR' });
   });
 });

@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "build": "vite build",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.api.json --noEmit",
+    "build": "tsc --noEmit && tsc -p tsconfig.api.json --noEmit && vite build",
     "verify": "npm run typecheck && npm run test && npm run build && node scripts/check-size.mjs"
   },
   "dependencies": {

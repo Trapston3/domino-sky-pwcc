@@ -11,4 +11,4 @@ export { simulateNetwork } from './simulator.js';
 export { diffSimulations, formatActionLabel } from './diff.js';
 
 /** Multi-objective recovery search and ranking functions. */
-export { optimizeRecovery, compareObjectives } from './optimizer.js';
+export { optimizeRecovery, compareObjectives, evaluateRecoveryPool, rankRecoveryPool } from './optimizer.js';

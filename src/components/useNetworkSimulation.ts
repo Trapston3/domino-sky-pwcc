@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { formatActionLabel, optimizeRecovery, simulateNetwork } from '../engine/index.js';
+import { evaluateRecoveryPool, formatActionLabel, rankRecoveryPool, simulateNetwork } from '../engine/index.js';
 import type {
   ClosureSpec,
   FlightNetworkDataset,
@@ -31,9 +31,13 @@ export function useNetworkSimulation(
     () => simulateNetwork(dataset, closure, appliedActions),
     [dataset, closure, appliedActions],
   );
+  const recoveryPool = useMemo(
+    () => (currentOutcome.ok ? evaluateRecoveryPool(dataset, closure, appliedActions) : []),
+    [dataset, closure, appliedActions, currentOutcome.ok],
+  );
   const recommendations = useMemo(
-    () => (currentOutcome.ok ? optimizeRecovery(dataset, closure, objective, appliedActions) : []),
-    [dataset, closure, objective, appliedActions, currentOutcome.ok],
+    () => rankRecoveryPool(recoveryPool, objective),
+    [recoveryPool, objective],
   );
   const previewOutcome = useMemo(
     () => (previewRec ? simulateNetwork(dataset, closure, [...appliedActions, ...previewRec.actions]) : null),
@@ -99,9 +103,10 @@ export function useNetworkSimulation(
     setAppliedActions([]);
     setPreviewRec(null);
     setActionError(null);
-    const outcome = simulateNetwork(dataset, closure, []);
-    if (outcome.ok) onAnnounce(summarizeOutcome('Cleared all recovery actions', outcome));
-  }, [dataset, closure, appliedActions.length, onAnnounce]);
+    if (baselineOutcome.ok) onAnnounce(summarizeOutcome('Cleared all recovery actions', baselineOutcome));
+  }, [baselineOutcome, appliedActions.length, onAnnounce]);
+
+  const clearError = useCallback(() => setActionError(null), []);
 
   return {
     closure,
@@ -116,7 +121,7 @@ export function useNetworkSimulation(
     previewResult,
     recommendations,
     setPreviewRec,
-    clearError: () => setActionError(null),
+    clearError,
     selectClosure,
     selectObjective,
     applyRecommendation,

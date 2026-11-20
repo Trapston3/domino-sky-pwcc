@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import type { Airport, ClosureSpec, ReopeningSurge, SimulatedFlight } from '../engine/types.js';
 import { ClosureControls } from './ClosureControls.js';
 import { SurgeBadge } from './SurgeBadge.js';
@@ -27,7 +27,7 @@ interface ScenarioBarProps {
 }
 
 /** Floating top navigation bar: branding, surge badge, closure controls, and view/3D/theme toggles. */
-export function ScenarioBar({
+export const ScenarioBar = memo(function ScenarioBar({
   airports,
   flights,
   closure,
@@ -156,4 +156,4 @@ export function ScenarioBar({
       </nav>
     </header>
   );
-}
+});

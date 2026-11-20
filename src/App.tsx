@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlightCanvas } from './canvas/FlightCanvas.js';
+import { getInitialReducedMotion, getInitialRightInset } from './components/appDefaults.js';
 import { DominoTraceCard } from './components/DominoTraceCard.js';
 import { KpiStrip } from './components/KpiStrip.js';
 import { PlainStatsView } from './components/PlainStatsView.js';
@@ -10,21 +11,13 @@ import {
   PlaybackBar,
   type PlaybackSpeed,
 } from './components/PlaybackBar.js';
+import { parseTimeMin } from './engine/index.js';
 import { RightRailStack } from './components/RightRailStack.js';
 import { ScenarioBar, type ThemeMode, type ViewMode } from './components/ScenarioBar.js';
 import { useAppShellEffects } from './components/useAppShellEffects.js';
+import { useAppViewActions } from './components/useAppViewActions.js';
 import { useNetworkSimulation } from './components/useNetworkSimulation.js';
 import { FLIGHT_NETWORK } from './data/flightNetwork.js';
-
-function getInitialReducedMotion(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-function getInitialRightInset(): number {
-  if (typeof window === 'undefined') return 412;
-  return window.innerWidth >= 1024 ? 412 : 0;
-}
 
 /** Root Domino Sky shell coordinating scenario state, engine simulation, canvas map, and Plain Stats. */
 export default function App() {
@@ -36,21 +29,54 @@ export default function App() {
   const [rightPanelInsetPx, setRightPanelInsetPx] = useState<number>(getInitialRightInset);
 
   const [currentTimeMin, setCurrentTimeMin] = useState<number>(DEFAULT_CLOCK_MIN);
+  const currentTimeRef = useRef<number>(DEFAULT_CLOCK_MIN);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [speed, setSpeed] = useState<PlaybackSpeed>(1);
 
   const [selectedFlightId, setSelectedFlightId] = useState<string | null>(null);
   const [selectedAirportId, setSelectedAirportId] = useState<string | null>(null);
+  const traceReturnFocusRef = useRef<HTMLElement | null>(null);
+  const traceWasOpenRef = useRef(false);
   const [announcement, setAnnouncement] = useState<string>('');
 
   const sim = useNetworkSimulation(FLIGHT_NETWORK, setAnnouncement);
+  const {
+    handleCanvasError,
+    handleToggleTheme,
+    handleToggleViewMode,
+    handleToggle3D,
+    handleFocusPreview,
+  } = useAppViewActions({
+    theme,
+    viewMode,
+    canvasUnavailable,
+    setTheme,
+    setViewMode,
+    setCanvasUnavailable,
+    setIsPlaying,
+    setIs3D,
+    setAnnouncement,
+  });
 
   const handleTogglePlay = useCallback(() => {
     setIsPlaying((prev) => {
-      if (!prev && currentTimeMin >= PLAYBACK_END_MIN) setCurrentTimeMin(PLAYBACK_START_MIN);
+      if (!prev && currentTimeRef.current >= PLAYBACK_END_MIN) {
+        currentTimeRef.current = PLAYBACK_START_MIN;
+        setCurrentTimeMin(PLAYBACK_START_MIN);
+      }
       return !prev;
     });
-  }, [currentTimeMin]);
+  }, []);
+
+  const handleSelectClosure = useCallback((closure: Parameters<typeof sim.selectClosure>[0], label?: string) => {
+    sim.selectClosure(closure, label);
+    setIsPlaying(false);
+    const nextTime = closure
+      ? Math.max(PLAYBACK_START_MIN, parseTimeMin(closure.start) - 30)
+      : DEFAULT_CLOCK_MIN;
+    currentTimeRef.current = nextTime;
+    setCurrentTimeMin(nextTime);
+  }, [sim.selectClosure]);
 
   const handleReducedMotionChange = useCallback((reduced: boolean) => {
     setReducedMotion(reduced);
@@ -72,22 +98,32 @@ export default function App() {
   }, [selectedFlightId, sim.currentResult]);
 
   const handleAdvanceClock = useCallback((nextTimeMin: number, reachedEnd?: boolean) => {
-    setCurrentTimeMin(Math.max(PLAYBACK_START_MIN, Math.min(PLAYBACK_END_MIN, nextTimeMin)));
+    const clampedTime = Math.max(PLAYBACK_START_MIN, Math.min(PLAYBACK_END_MIN, nextTimeMin));
+    currentTimeRef.current = clampedTime;
+    setCurrentTimeMin(clampedTime);
     if (reachedEnd) setIsPlaying(false);
   }, []);
 
   const handleSelectFlight = useCallback((flightId: string) => {
+    if (!selectedFlightId && !selectedAirportId && typeof document !== 'undefined') {
+      const active = document.activeElement;
+      traceReturnFocusRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    }
     setSelectedFlightId(flightId);
     setSelectedAirportId(null);
     setAnnouncement(`Opened Domino Trace for flight ${flightId}.`);
-  }, []);
+  }, [selectedAirportId, selectedFlightId]);
 
   const handleSelectAirport = useCallback((airportId: string) => {
+    if (!selectedFlightId && !selectedAirportId && typeof document !== 'undefined') {
+      const active = document.activeElement;
+      traceReturnFocusRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    }
     setSelectedAirportId(airportId);
     setSelectedFlightId(null);
     const airport = FLIGHT_NETWORK.airports.find((item) => item.id === airportId);
     setAnnouncement(`Opened Domino Trace for ${airportId}${airport ? `, ${airport.city}` : ''}.`);
-  }, []);
+  }, [selectedAirportId, selectedFlightId]);
 
   const handleClearSelection = useCallback(() => {
     setSelectedFlightId(null);
@@ -95,12 +131,18 @@ export default function App() {
     setAnnouncement('Closed Domino Trace.');
   }, []);
 
-  const handleCanvasError = useCallback(() => {
-    setCanvasUnavailable(true);
-    setViewMode('plain');
-    setIsPlaying(false);
-    setAnnouncement('2D map canvas unavailable; switched to Plain Stats mode.');
-  }, []);
+  useEffect(() => {
+    if (selectedFlightId || selectedAirportId) {
+      traceWasOpenRef.current = true;
+      return;
+    }
+    if (!traceWasOpenRef.current) return;
+    traceWasOpenRef.current = false;
+    const target = traceReturnFocusRef.current;
+    traceReturnFocusRef.current = null;
+    if (target?.isConnected) target.focus();
+    else document.getElementById('main-content')?.focus();
+  }, [selectedAirportId, selectedFlightId]);
 
   const scenarioBarNode = (
     <ScenarioBar
@@ -114,20 +156,10 @@ export default function App() {
       canvasUnavailable={canvasUnavailable}
       selectedFlightId={selectedFlightId}
       selectedAirportId={selectedAirportId}
-      onSelectClosure={sim.selectClosure}
-      onToggleTheme={() => {
-        const next: ThemeMode = theme === 'night' ? 'day' : 'night';
-        setTheme(next);
-        setAnnouncement(`Switched to ${next === 'night' ? 'Night' : 'Day'} theme.`);
-      }}
-      onToggleViewMode={() => {
-        if (canvasUnavailable && viewMode === 'plain') return;
-        const next: ViewMode = viewMode === 'map' ? 'plain' : 'map';
-        setViewMode(next);
-        if (next === 'plain') setIsPlaying(false);
-        setAnnouncement(`Switched to ${next === 'map' ? 'Map view' : 'Plain stats mode'}.`);
-      }}
-      onToggle3D={() => setIs3D((prev) => !prev)}
+      onSelectClosure={handleSelectClosure}
+      onToggleTheme={handleToggleTheme}
+      onToggleViewMode={handleToggleViewMode}
+      onToggle3D={handleToggle3D}
       onSelectFlight={handleSelectFlight}
       onSelectAirport={handleSelectAirport}
       onClearSelection={handleClearSelection}
@@ -173,7 +205,7 @@ export default function App() {
       objective={sim.objective}
       recommendations={sim.recommendations}
       actionError={sim.actionError}
-      onAnnounce={setAnnouncement}
+      onFocusPreview={handleFocusPreview}
       currentTimeMin={currentTimeMin}
       includeKpiAndFeed={viewMode === 'map'}
       onSelectObjective={sim.selectObjective}
@@ -196,7 +228,7 @@ export default function App() {
         <div className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</div>
         {scenarioBarNode}
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_370px] xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
-          <main id="main-content" aria-label="Network disruption KPIs and plain stats operational view" className="min-w-0 flex flex-col gap-4">
+          <main id="main-content" tabIndex={-1} aria-label="Network disruption KPIs and plain stats operational view" className="min-w-0 flex flex-col gap-4">
             {traceCardNode}
             <KpiStrip
               layout="wide"
@@ -210,7 +242,7 @@ export default function App() {
               dataset={FLIGHT_NETWORK}
               baselineResult={sim.baselineResult}
               currentResult={sim.currentResult}
-              previewResult={null}
+              previewResult={sim.previewResult}
               appliedCount={sim.appliedActions.length}
               onSelectFlight={handleSelectFlight}
             />
@@ -256,7 +288,7 @@ export default function App() {
       <div className="relative z-10 min-h-screen lg:h-full w-full pointer-events-none p-2.5 sm:p-3.5 flex flex-col gap-2.5">
         {scenarioBarNode}
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch justify-between gap-3">
-          <main id="main-content" aria-label="Interactive disruption map trace and playback controls" className="min-w-0 flex-1 flex flex-col justify-end gap-2.5 pointer-events-none min-h-[300px]">
+          <main id="main-content" tabIndex={-1} aria-label="Interactive disruption map trace and playback controls" className="min-w-0 flex-1 flex flex-col justify-end gap-2.5 pointer-events-none min-h-[300px]">
             {traceCardNode && <div className="pointer-events-auto max-w-xl">{traceCardNode}</div>}
             <div className="pointer-events-auto w-full">
               <PlaybackBar
@@ -269,10 +301,12 @@ export default function App() {
                 onChangeSpeed={setSpeed}
                 onScrubTime={(t) => {
                   setIsPlaying(false);
+                  currentTimeRef.current = t;
                   setCurrentTimeMin(t);
                 }}
                 onResetClock={() => {
                   setIsPlaying(false);
+                  currentTimeRef.current = DEFAULT_CLOCK_MIN;
                   setCurrentTimeMin(DEFAULT_CLOCK_MIN);
                 }}
               />

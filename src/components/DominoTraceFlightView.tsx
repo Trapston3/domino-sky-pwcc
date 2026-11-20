@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { SimulatedFlight, SimulationResult } from '../engine/types.js';
 import { ConnectionItem, CrewDutyPanel } from './DominoTraceDetails.js';
 import { FLIGHT_STATUS_META } from './statusStyles.js';
@@ -18,6 +19,11 @@ export function DominoTraceFlightView({
   onSelectAirport,
   onClose,
 }: DominoTraceFlightViewProps) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [flight.flight_id]);
+
   const activeTailId = flight.cancelled ? flight.tail_id : flight.operatingTail;
   const tailChain = simulation.flights
     .filter((f) => (f.cancelled ? f.tail_id === activeTailId : f.operatingTail === activeTailId))
@@ -62,7 +68,7 @@ export function DominoTraceFlightView({
           </div>
 
           <div className="flex flex-wrap items-baseline gap-2">
-            <h2 className="font-mono-tabular text-base font-semibold" style={{ color: 'var(--ink)' }}>
+            <h2 ref={headingRef} tabIndex={-1} className="font-mono-tabular text-base font-semibold" style={{ color: 'var(--ink)' }}>
               {flight.flight_id}
             </h2>
             <div className="flex items-center gap-1 font-mono-tabular text-xs">

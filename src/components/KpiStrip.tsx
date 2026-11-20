@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { SimulationSummary } from '../engine/types.js';
 
 interface KpiStripProps {
@@ -62,7 +63,7 @@ function DeltaBadge({
 }
 
 /** Displays the 4 headline disruption KPIs with `was X` hover/apply deltas and pax breakdown. */
-export function KpiStrip({
+export const KpiStrip = memo(function KpiStrip({
   baselineSummary,
   currentSummary,
   previewSummary,
@@ -245,4 +246,4 @@ export function KpiStrip({
       </div>
     </section>
   );
-}
+});

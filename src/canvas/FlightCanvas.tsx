@@ -175,7 +175,18 @@ export function FlightCanvas(props: FlightCanvasProps) {
         });
       }
 
-      if ((!p.reducedMotion || p.isPlaying || camActive) && !document.hidden) {
+      const closure = p.simulation.closure;
+      const closureRingVisible = closure !== null && animClockRef.current < closure.endMin;
+      let heldFlightsVisible = false;
+      for (let i = 0; i < buffers.airportHeldCount.length; i += 1) {
+        if (buffers.airportHeldCount[i] > 0) {
+          heldFlightsVisible = true;
+          break;
+        }
+      }
+      const hasActiveAnimation = p.isPlaying || camActive ||
+        (!p.reducedMotion && (closureRingVisible || heldFlightsVisible));
+      if (hasActiveAnimation && !document.hidden) {
         rafIdRef.current = requestAnimationFrame(runFrame);
       }
     };

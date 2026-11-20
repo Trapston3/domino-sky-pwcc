@@ -6,20 +6,35 @@ const MAX_BYTES = 1_048_576; // 1 MB competition limit
 const root = process.cwd();
 
 let trackedOutput = '';
+let sizeMode = 'tracked files';
 try {
   trackedOutput = execFileSync('git', ['ls-files', '-z'], {
     cwd: root,
     encoding: 'utf8',
   });
 } catch {
-  console.error('Failed to list tracked files via git ls-files.');
-  process.exit(1);
+  sizeMode = 'recursive fallback (git ls-files unavailable)';
 }
 
-const files = trackedOutput.split('\0').filter(Boolean);
+let files = trackedOutput.split('\0').filter(Boolean);
 if (files.length === 0) {
-  console.error('No tracked files found in git index. Stage files with git add first.');
-  process.exit(1);
+  sizeMode = 'recursive fallback (no tracked files returned)';
+  const excludedDirectories = new Set([
+    '.git', 'node_modules', 'dist', '.vercel', '.vite', '.cache', 'coverage',
+  ]);
+  const isIgnoredEnv = (name) => name === '.env' || (name.startsWith('.env.') && name !== '.env.example');
+  const walk = (directory, relative = '') => {
+    const found = [];
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (excludedDirectories.has(entry.name) || isIgnoredEnv(entry.name)) continue;
+      const relativePath = relative ? path.join(relative, entry.name) : entry.name;
+      const absolutePath = path.join(directory, entry.name);
+      if (entry.isDirectory()) found.push(...walk(absolutePath, relativePath));
+      else if (entry.isFile()) found.push(relativePath);
+    }
+    return found;
+  };
+  files = walk(root);
 }
 
 const entries = [];
@@ -38,7 +53,8 @@ entries.sort((a, b) => b.bytes - a.bytes);
 const kb = (totalBytes / 1024).toFixed(1);
 const mb = (totalBytes / 1_048_576).toFixed(3);
 
-console.log(`Tracked repo size: ${totalBytes} bytes (${kb} KB / ${mb} MB) across ${entries.length} files`);
+console.log(`Size check mode: ${sizeMode}`);
+console.log(`Repo size: ${totalBytes} bytes (${kb} KB / ${mb} MB) across ${entries.length} files`);
 console.log('Top 5 largest tracked files:');
 for (const item of entries.slice(0, 5)) {
   console.log(`  ${(item.bytes / 1024).toFixed(1).padStart(7)} KB  ${item.file}`);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { formatActionLabel } from '../engine/index.js';
 import type {
   ClosureSpec,
@@ -22,6 +22,9 @@ interface AiDispatcherPanelProps {
 interface DispatchApiResponse {
   source?: string; text?: string; degraded?: boolean; notice?: string; error?: string;
 }
+
+const BRIEF_CACHE_LIMIT = 24;
+const briefCache = new Map<string, DispatchApiResponse>();
 
 const STARTER_PROMPTS = ['Why is DS0702 delayed?', 'Compare compliance vs delay recovery', 'Which connections break without action?'] as const;
 const FLIGHT_ID_SPLIT_RE = /\b(DS\d{4})\b/g;
@@ -94,7 +97,7 @@ function renderLinesWithFlightChips(
 }
 
 /** AI Dispatcher briefing and grounded Q&A panel backed by `/api/dispatch` with deterministic degradation. */
-export function AiDispatcherPanel({
+export const AiDispatcherPanel = memo(function AiDispatcherPanel({
   dataset,
   closure,
   simulation,
@@ -124,6 +127,25 @@ export function AiDispatcherPanel({
   fallbackRef.current = fallbackBrief;
 
   useEffect(() => {
+    askAbortRef.current?.abort();
+    setIsAsking(false);
+    setQaTurn(null);
+  }, [closure]);
+
+  useEffect(() => {
+    const cacheKey = JSON.stringify({ closure, actions: appliedActions, objective });
+    const cached = briefCache.get(cacheKey);
+    if (cached) {
+      briefCache.delete(cacheKey);
+      briefCache.set(cacheKey, cached);
+      setSource(typeof cached.source === 'string' ? cached.source : 'DETERMINISTIC ENGINE');
+      setBriefText(typeof cached.text === 'string' && cached.text.trim() ? cached.text : fallbackRef.current);
+      setDegraded(Boolean(cached.degraded));
+      setDegradedNotice(cached.degraded ? (cached.notice ?? 'AI unavailable — showing deterministic engine briefing.') : null);
+      setInlineError(null);
+      setIsLoadingBrief(false);
+      return;
+    }
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setIsLoadingBrief(true);
@@ -143,6 +165,11 @@ export function AiDispatcherPanel({
         if (!res.ok) {
           setInlineError(data.error ?? 'Unable to refresh briefing.');
           return;
+        }
+        briefCache.set(cacheKey, data);
+        if (briefCache.size > BRIEF_CACHE_LIMIT) {
+          const oldestKey = briefCache.keys().next().value;
+          if (oldestKey !== undefined) briefCache.delete(oldestKey);
         }
         setSource(typeof data.source === 'string' ? data.source : 'DETERMINISTIC ENGINE');
         setBriefText(typeof data.text === 'string' && data.text.trim() ? data.text : fallbackRef.current);
@@ -274,4 +301,4 @@ export function AiDispatcherPanel({
       </form>
     </section>
   );
-}
+});

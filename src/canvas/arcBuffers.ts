@@ -38,6 +38,7 @@ export {
  * per-frame scratch buffers for the Canvas 2D flight map.
  */
 export class SceneBuffers {
+  private readonly radialGlowSprites = new Map<string, CanvasImageSource | null>();
   dataset: FlightNetworkDataset | null = null;
   simulation: SimulationResult | null = null;
   previewSimulation: SimulationResult | null = null;
@@ -82,6 +83,38 @@ export class SceneBuffers {
   airportSortOrder: Int32Array = new Int32Array(0);
   airportLabelMeasuredWidth: Float32Array = new Float32Array(0);
   labelWidthsMeasured = false;
+
+  /** Returns a cached radial glow sprite, or null when this runtime cannot create a canvas. */
+  getRadialGlowSprite(color: string): CanvasImageSource | null {
+    if (this.radialGlowSprites.has(color)) return this.radialGlowSprites.get(color) ?? null;
+
+    let canvas: HTMLCanvasElement | OffscreenCanvas | null = null;
+    if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+      canvas = document.createElement('canvas');
+    } else if (typeof OffscreenCanvas !== 'undefined') {
+      canvas = new OffscreenCanvas(128, 128);
+    }
+    if (!canvas) {
+      this.radialGlowSprites.set(color, null);
+      return null;
+    }
+
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      this.radialGlowSprites.set(color, null);
+      return null;
+    }
+
+    const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 128, 128);
+    this.radialGlowSprites.set(color, canvas);
+    return canvas;
+  }
 
   flightScreenX: Float32Array = new Float32Array(0);
   flightScreenY: Float32Array = new Float32Array(0);

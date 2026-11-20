@@ -32,6 +32,9 @@ function sendJson(
 ): void {
   if (typeof res.setHeader === 'function') {
     res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
     if (headers) {
       for (const [key, value] of Object.entries(headers)) {
         res.setHeader(key, value);
@@ -198,6 +201,22 @@ export default async function handler(
     sendJson(res, 405, {
       error: 'Method not allowed. Use POST.',
       code: 'METHOD_NOT_ALLOWED',
+    });
+    return;
+  }
+
+  const contentTypeRaw = Object.entries(req.headers ?? {}).find(
+    ([name]) => name.toLowerCase() === 'content-type',
+  )?.[1];
+  const contentTypes = Array.isArray(contentTypeRaw)
+    ? contentTypeRaw
+    : contentTypeRaw !== undefined
+      ? [contentTypeRaw]
+      : [];
+  if (contentTypes.some((value) => !value.toLowerCase().includes('application/json'))) {
+    sendJson(res, 400, {
+      error: 'Content-Type must be application/json.',
+      code: 'INVALID_CONTENT_TYPE',
     });
     return;
   }

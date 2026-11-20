@@ -68,7 +68,7 @@ export function resolveVertexModel(env: EnvRecord = process.env): string {
 }
 
 /**
- * Initialize a Vertex AI client following the SPEC §4 authentication priority:
+ * Initialize a Vertex AI client following the configured authentication priority:
  * (1) `GOOGLE_VERTEX_API_KEY`, (2) `GCP_SERVICE_ACCOUNT_B64`, (3) `null`.
  */
 export function createVertexClientFromEnv(env: EnvRecord = process.env): VertexAuthResolution | null {
@@ -162,6 +162,11 @@ function buildContextPrompt(input: VertexDispatchInput): string {
 function isThinkingConfigRejected(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return /thinking(Config|Level|_config|_level)|thinking.*not supported|invalid.*thinking/i.test(msg);
+}
+
+function isToolRoundLimitExceeded(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /maximum tool call rounds/i.test(msg);
 }
 
 function extractTextFromContent(content: Content | undefined, fallbackText?: string): string {
@@ -266,6 +271,9 @@ export async function runVertexDispatch(input: VertexDispatchInput): Promise<Ver
     try {
       return await executeSingleAttempt(resolved.client, resolved.model, input, true, controller.signal);
     } catch (firstErr) {
+      if (controller.signal.aborted || isToolRoundLimitExceeded(firstErr)) {
+        throw firstErr;
+      }
       const dropThinking = isThinkingConfigRejected(firstErr);
       return await executeSingleAttempt(resolved.client, resolved.model, input, !dropThinking, controller.signal);
     }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { formatActionLabel } from '../engine/index.js';
 import type {
   ClosureSpec,
@@ -33,7 +33,7 @@ const OBJECTIVES: ReadonlyArray<{ id: Objective; label: string; icon: string; hi
 ];
 
 /** Recovery optimizer panel: objective switcher, applied stack, and ranked recommendation cards. */
-export function RecoveryRail({
+export const RecoveryRail = memo(function RecoveryRail({
   closure,
   objective,
   onSelectObjective,
@@ -223,4 +223,4 @@ export function RecoveryRail({
       </div>
     </section>
   );
-}
+});

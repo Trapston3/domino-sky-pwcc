@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "api/**/*.ts",
+    "src/engine/**/*.ts",
+    "src/server/**/*.ts",
+    "src/data/**/*.ts"
+  ],
+  "exclude": ["**/__tests__/**"]
+}
