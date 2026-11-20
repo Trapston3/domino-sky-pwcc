@@ -178,6 +178,8 @@ export function ClosureControls({
               }}
               placeholder="HH:MM"
               aria-label="Closure start time in 24-hour HH:MM IST"
+              aria-invalid={hasError}
+              aria-describedby={hasError ? 'closure-time-hint' : undefined}
               className="font-mono-tabular w-14 rounded-md border px-1.5 py-0.5 text-[11px] text-center"
               style={{ backgroundColor: 'var(--panel-elevated)', color: 'var(--ink)', borderColor: hasError ? 'var(--breach)' : 'var(--border)' }}
             />

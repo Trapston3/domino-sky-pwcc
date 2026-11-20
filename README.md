@@ -27,6 +27,15 @@ A single airport ground stop triggers a nonlinear operational cascade: inbound a
 
 ## 3. How It Works
 
+### Try a scenario
+
+1. Start with **Mumbai storm** selected and the clock paused at **07:00 IST**. Choose **Delhi squall**, **Bengaluru ground stop**, **Kolkata evening**, or **Clear skies** to compare the supplied scenarios.
+2. Use the airport, start-time, and duration controls to model a custom ground stop. Invalid times are explained beside the controls.
+3. Review the KPI strip and live event feed. Select a flight or airport from **Inspect** (or select a flight on the map) to open its Domino Trace and follow the affected tail, connections, and crew duty.
+4. In **Recovery Optimizer**, choose Compliance, Passengers, or Delay. Focus or hover a recommendation to preview its engine-computed results; choose **Apply** to add it to the recovery stack. Use **Undo** or **Clear** to reverse the stack.
+5. Choose **Plain stats** for filterable flight, connection, and crew tables plus the tail-chain timeline. The tables provide a keyboard-operable route through the same simulation when the map is unavailable.
+6. Use **Play/Pause**, the 1×/2×/5× controls, or the keyboard-operable time slider to explore the day. The Space shortcut toggles playback while the map view is active; playback starts paused when reduced motion is requested.
+
 - **2D/3D Perspective India Map (`src/canvas/`)**:
   - Pure HTML5 Canvas 2D context (DPR capped at 2, single `requestAnimationFrame` loop, zero per-frame allocations) with a hand-written perspective camera (`0°` 2D top-down ↔ `38°` 3D tilt, pointer drag tilt/yaw, double-click reset).
   - Embeds a 75-vertex mainland India outline and precomputed 890-dot interior landmass grid.
@@ -40,17 +49,19 @@ A single airport ground stop triggers a nonlinear operational cascade: inbound a
   - Toggle **Plain stats** (or auto-fallback if Canvas 2D context fails) for full operational parity without the canvas: Before/After recovery summary table, filterable Flights table with a **"Why late?"** column, Connections table, Crews 600m duty table, and a Tail-Chain CSS timeline across all tails and active spares.
 - **Local Development, Verification & Vercel Setup**:
   1. Install dependencies: `npm install`
-  2. Start local dev server (works with zero credentials in `DETERMINISTIC ENGINE` mode): `npm run dev`
-  3. Copy `.env.example` to `.env` (or configure Vercel Environment Variables) for Vertex AI:
+  2. Start the local dev server (works with zero credentials in `DETERMINISTIC ENGINE` mode): `npm run dev`. The local API plugin reads only the documented server-side Vertex variables from `.env.local`; those values are not injected into the browser bundle.
+  3. For local Vertex AI, copy `.env.example` to `.env.local` and fill in one authentication option:
      - **Option 1 (API Key)**: `GOOGLE_VERTEX_API_KEY=<key>`
      - **Option 2 (Service Account)**: `GCP_SERVICE_ACCOUNT_B64=<base64-json>`, `GOOGLE_CLOUD_PROJECT=<project-id>`, `GOOGLE_CLOUD_LOCATION=global`
      - **Model**: `VERTEX_MODEL=gemini-3.8-flash`
+     Keep credentials in the ignored `.env.local`; never prefix secret values with `VITE_` or commit them. Vertex is optional: without credentials, dispatch briefings and answers use the deterministic server fallback.
   4. Run the full verification gate:
      ```bash
      npm run verify
      ```
      Runs `npm run typecheck` (`tsc --noEmit`), `npm test` (Vitest golden + API + dispatch suites), `npm run build` (`vite build`), and `node scripts/check-size.mjs` (verifies tracked repo size `< 1 MB`).
-  5. Deploy smoke test: hit `GET /api/ping` (`{ ok: true, flights: 70, baselineLate: 0 }`).
+  5. **Deploy to Vercel**: push the `main` branch to GitHub and import the repository in Vercel. Use the Vite preset, `npm run build` as the build command, and `dist` as the output directory. Set the same optional Vertex variables in the Vercel project's server-side environment-variable settings, then deploy. Do not set them with a `VITE_` prefix. The build works without Vertex credentials and falls back to deterministic dispatch responses.
+  6. Check the deployed smoke test at `GET /api/ping`; it should return `{ ok: true, flights: 70, baselineLate: 0 }`. A `POST /api/dispatch` request without credentials should return `source: "DETERMINISTIC ENGINE"`.
 
 ## 4. Assumptions
 

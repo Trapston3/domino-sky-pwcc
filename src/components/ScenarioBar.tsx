@@ -93,7 +93,7 @@ export function ScenarioBar({
           </div>
 
           {timeHint && (
-            <p className="text-xs font-medium" style={{ color: 'var(--breach-text)' }} role="alert">
+            <p id="closure-time-hint" className="text-xs font-medium" style={{ color: 'var(--breach-text)' }} role="alert">
               ▲ {timeHint}
             </p>
           )}

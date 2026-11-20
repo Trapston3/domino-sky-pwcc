@@ -79,16 +79,20 @@ export default function App() {
   const handleSelectFlight = useCallback((flightId: string) => {
     setSelectedFlightId(flightId);
     setSelectedAirportId(null);
+    setAnnouncement(`Opened Domino Trace for flight ${flightId}.`);
   }, []);
 
   const handleSelectAirport = useCallback((airportId: string) => {
     setSelectedAirportId(airportId);
     setSelectedFlightId(null);
+    const airport = FLIGHT_NETWORK.airports.find((item) => item.id === airportId);
+    setAnnouncement(`Opened Domino Trace for ${airportId}${airport ? `, ${airport.city}` : ''}.`);
   }, []);
 
   const handleClearSelection = useCallback(() => {
     setSelectedFlightId(null);
     setSelectedAirportId(null);
+    setAnnouncement('Closed Domino Trace.');
   }, []);
 
   const handleCanvasError = useCallback(() => {
@@ -169,6 +173,7 @@ export default function App() {
       objective={sim.objective}
       recommendations={sim.recommendations}
       actionError={sim.actionError}
+      onAnnounce={setAnnouncement}
       currentTimeMin={currentTimeMin}
       includeKpiAndFeed={viewMode === 'map'}
       onSelectObjective={sim.selectObjective}

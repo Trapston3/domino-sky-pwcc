@@ -6,6 +6,7 @@ interface RecoveryCardProps {
   objective: Objective;
   isPreviewing: boolean;
   onPreview: (rec: RecoveryRecommendation | null) => void;
+  onFocusPreview: (rec: RecoveryRecommendation) => void;
   onApply: (rec: RecoveryRecommendation) => void;
 }
 
@@ -46,6 +47,7 @@ export function RecoveryCard({
   objective,
   isPreviewing,
   onPreview,
+  onFocusPreview,
   onApply,
 }: RecoveryCardProps) {
   const delayDelta = formatMetricDelta(rec.diff.delayDeltaMin, 'm');
@@ -56,7 +58,10 @@ export function RecoveryCard({
     <article
       onMouseEnter={() => onPreview(rec)}
       onMouseLeave={() => onPreview(null)}
-      onFocus={() => onPreview(rec)}
+      onFocus={() => {
+        onPreview(rec);
+        onFocusPreview(rec);
+      }}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
           onPreview(null);

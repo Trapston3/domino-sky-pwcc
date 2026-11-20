@@ -19,6 +19,7 @@ interface RecoveryRailProps {
   previewId: string | null;
   actionError: string | null;
   onPreview: (rec: RecoveryRecommendation | null) => void;
+  onFocusPreview: (rec: RecoveryRecommendation) => void;
   onApply: (rec: RecoveryRecommendation) => void;
   onUndo: () => void;
   onClear: () => void;
@@ -42,6 +43,7 @@ export function RecoveryRail({
   previewId,
   actionError,
   onPreview,
+  onFocusPreview,
   onApply,
   onUndo,
   onClear,
@@ -199,6 +201,7 @@ export function RecoveryRail({
                 objective={objective}
                 isPreviewing={previewId === rec.id}
                 onPreview={onPreview}
+                onFocusPreview={onFocusPreview}
                 onApply={onApply}
               />
             ))}

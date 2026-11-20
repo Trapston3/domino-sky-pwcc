@@ -22,6 +22,7 @@ interface RightRailStackProps {
   objective: Objective;
   recommendations: readonly RecoveryRecommendation[];
   actionError: string | null;
+  onAnnounce: (message: string) => void;
   currentTimeMin: number;
   includeKpiAndFeed: boolean;
   onSelectObjective: (objective: Objective) => void;
@@ -46,6 +47,7 @@ export function RightRailStack({
   objective,
   recommendations,
   actionError,
+  onAnnounce,
   currentTimeMin,
   includeKpiAndFeed,
   onSelectObjective,
@@ -89,6 +91,7 @@ export function RightRailStack({
         previewId={previewRec?.id ?? null}
         actionError={actionError}
         onPreview={onPreview}
+        onFocusPreview={(rec) => onAnnounce(`Previewing recovery recommendation: ${rec.title}.`)}
         onApply={onApply}
         onUndo={onUndo}
         onClear={onClear}
