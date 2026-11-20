@@ -6,9 +6,9 @@ import type {
   RecoveryRecommendation,
   SimulationResult,
 } from '../engine/types.js';
+import { AiDispatcherPanel } from './AiDispatcherPanel.js';
 import { KpiStrip } from './KpiStrip.js';
 import { LiveEventFeed } from './LiveEventFeed.js';
-import { OperationalSummaryBox } from './OperationalSummaryBox.js';
 import { RecoveryRail } from './RecoveryRail.js';
 
 interface RightRailStackProps {
@@ -34,7 +34,7 @@ interface RightRailStackProps {
   onSelectAirport: (airportId: string) => void;
 }
 
-/** Shared right rail stack composing KPIs + Live Feed (in map mode), Recovery Optimizer, and Summary. */
+/** Shared right rail stack composing KPIs + Live Feed (in map mode), AI Dispatcher, and Recovery Optimizer. */
 export function RightRailStack({
   dataset,
   closure,
@@ -95,7 +95,7 @@ export function RightRailStack({
         onDismissError={onDismissError}
       />
 
-      <OperationalSummaryBox
+      <AiDispatcherPanel
         dataset={dataset}
         closure={closure}
         simulation={currentResult}
