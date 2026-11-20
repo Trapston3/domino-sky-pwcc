@@ -141,3 +141,9 @@ GATE: `npm run verify` is green; `git branch -a` shows only `main`; repo size < 
 - [ ] Single `main` branch, public, < 1 MB
 - [ ] README has the 4 sections, with assumptions listed
 - [ ] Keyboard-only walkthrough of scenario → recovery → plain stats works
+
+
+# 9. RUBRIC UPDATE
+Code Quality and Problem Statement Alignment are the highest-weighted evaluation criteria. For Phases 2 and 3 (and clean up anything messy from Phase 1 as needed):
+- Keep every file cleanly modularized and single-responsibility (`src/engine/`, `src/canvas/`, `src/components/`, `api/`), aiming for under ~300 lines per file.
+- Keep strict TypeScript with zero `any`, zero unused variables/imports, and brief JSDoc comments on exported engine and API functions.

@@ -1,6 +1,7 @@
 import { FLIGHT_NETWORK } from '../src/data/flightNetwork.js';
 import { simulateNetwork } from '../src/engine/index.js';
 
+/** Vercel serverless function configuration (10s max duration). */
 export const config = { maxDuration: 10 };
 
 export interface PingRequest {
@@ -39,6 +40,9 @@ function sendJson(res: PingResponse, statusCode: number, payload: unknown): void
   }
 }
 
+/**
+ * Serverless smoke-test handler verifying baseline simulation on GET requests.
+ */
 export default function handler(req: PingRequest, res: PingResponse): void {
   if (req.method !== 'GET') {
     if (typeof res.setHeader === 'function') {
